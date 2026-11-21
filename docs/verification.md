@@ -8,9 +8,9 @@ Fitro MCP 1.0.0, checked locally on 2026-11-20. All automated credentials are sy
 | Ruff lint, including security rules | Pass |
 | Ruff formatting | Pass |
 | Strict mypy, package sources | Pass |
-| Python 3.11.13 | 85 core tests + 4 publishing checks passed; core coverage 97.11% |
-| Python 3.12.11 | 85 core tests + 4 publishing checks passed; core coverage 97.11% |
-| Python 3.13.7 | 85 core tests + 4 publishing checks passed; core coverage 97.11% |
+| Python 3.11.13 | 89 tests passed in CI; local core coverage 97.11% |
+| Python 3.12.11 | 89 tests passed in CI; local core coverage 97.11% |
+| Python 3.13.7 | 89 tests passed in CI; local core coverage 97.11% |
 | Python 3.14.9 | 89 tests passed; 97.07% statement coverage |
 | `uv run pip-audit` | No known dependency vulnerabilities reported |
 | Wheel and source distribution build | Pass |
@@ -31,10 +31,12 @@ scanner audits installed third-party dependencies, not this project's source.
 Ruff/mypy and tests cover source behavior but are not a complete security audit.
 
 CI and local checks cover Python 3.11–3.14. macOS is not verified locally.
-No GitHub CI run has been observed. A manual live global-region token exchange and
+[GitHub CI run #1](https://github.com/phanijapps/fitro-mcp/actions/runs/44861252180)
+passed all Python 3.11–3.14 quality jobs and the dependency audit. A manual live
+global-region token exchange and
 authenticated activity-types call succeeded through MCP. Other endpoints and the
-China region remain unverified live. No registry upload or trademark clearance was
-performed. Observed plain-JWT responses and synthetic JSON compatibility formats
+China region remain unverified live. Trademark clearance has not been performed.
+PyPI upload/registry installation is a separate release step requiring credentials. Observed plain-JWT responses and synthetic JSON compatibility formats
 are distinguished in [authentication.md](authentication.md).
 
 The serialized `tools/list` tool definitions decreased from 21,705 characters
