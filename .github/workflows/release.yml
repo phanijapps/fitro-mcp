@@ -1,0 +1,171 @@
+name: Publish release
+on:
+  push:
+    tags: ['v[0-9]*.[0-9]*.[0-9]*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to publish (for example v1.0.0)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ inputs.tag || github.ref }}
+    permissions:
+      contents: read
+
+  prepare:
+    needs: verify
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: distributions
+          path: release/dist
+      - name: Verify immutable tag and distribution versions
+        id: version
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import ast, email, hashlib, os, re, subprocess, tarfile, tomllib, zipfile
+          from pathlib import Path
+          tag = os.environ['RELEASE_TAG']
+          if re.fullmatch(r'v\d+\.\d+\.\d+', tag) is None:
+              raise SystemExit('A stable vMAJOR.MINOR.PATCH tag is required.')
+          version = tag[1:]
+          if subprocess.check_output(['git','rev-parse','HEAD']).strip() != subprocess.check_output(['git','rev-parse',f'{tag}^{{}}']).strip():
+              raise SystemExit('Checkout does not match the release tag.')
+          metadata = tomllib.loads(Path('pyproject.toml').read_text())['project']
+          tree = ast.parse(Path('src/fitro_mcp/__init__.py').read_text())
+          runtime = next(ast.literal_eval(node.value) for node in tree.body if isinstance(node,ast.Assign) and any(isinstance(target,ast.Name) and target.id=='__version__' for target in node.targets))
+          if metadata['version'] != version or runtime != version:
+              raise SystemExit('Tag, package metadata and runtime version must match.')
+          directory = Path('release/dist')
+          expected = {f'fitro_mcp-{version}-py3-none-any.whl', f'fitro_mcp-{version}.tar.gz'}
+          if {path.name for path in directory.iterdir()} != expected:
+              raise SystemExit('Unexpected distribution inventory.')
+          wheel = directory / f'fitro_mcp-{version}-py3-none-any.whl'
+          with zipfile.ZipFile(wheel) as archive:
+              name = next(name for name in archive.namelist() if name.endswith('.dist-info/METADATA'))
+              info = email.message_from_bytes(archive.read(name))
+              if info['Name'] != 'fitro-mcp' or info['Version'] != version:
+                  raise SystemExit('Wheel metadata does not match tag.')
+          source = directory / f'fitro_mcp-{version}.tar.gz'
+          with tarfile.open(source) as archive:
+              member = next(member for member in archive.getmembers() if member.name.endswith('/PKG-INFO') and member.name.count('/')==1)
+              info = email.message_from_bytes(archive.extractfile(member).read())
+              if info['Name'] != 'fitro-mcp' or info['Version'] != version:
+                  raise SystemExit('Source archive metadata does not match tag.')
+          changelog = Path('CHANGELOG.md').read_text()
+          section = re.search(r'^## '+re.escape(version)+r'[^\n]*\n(.*?)(?=^## |\Z)',changelog,re.M|re.S)
+          notes = section.group(1).strip() if section else 'Read-only personal fitness and wellness MCP server.'
+          notes += f'\n\nInstall: `pip install fitro-mcp=={version}` or `uvx fitro-mcp@{version}`.\n\nA [Garmin Personal API key](https://developer.garmin.com/gc-developer-program/personal/personal-api/) is required. See the README for Codex setup.\n'
+          Path('release/notes.md').write_text(notes)
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              output.write(f'version={version}\ntag={tag}\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-distributions
+          path: release/
+          retention-days: 14
+
+  pypi:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-distributions
+          path: release
+      - name: Reuse exact PyPI files on reruns
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, os, urllib.error, urllib.parse, urllib.request
+          from pathlib import Path
+          version = os.environ['RELEASE_VERSION']
+          try:
+              with urllib.request.urlopen(f'https://pypi.org/pypi/fitro-mcp/{version}/json',timeout=30) as response:
+                  release = json.load(response)
+          except urllib.error.HTTPError as error:
+              if error.code != 404:
+                  raise
+              print('New PyPI version; verified build artifacts will be published.')
+          else:
+              expected = {f'fitro_mcp-{version}-py3-none-any.whl',f'fitro_mcp-{version}.tar.gz'}
+              if {entry['filename'] for entry in release['urls']} != expected:
+                  raise SystemExit('Existing PyPI version has an unexpected or incomplete file set.')
+              for entry in release['urls']:
+                  parsed = urllib.parse.urlparse(entry['url'])
+                  if parsed.scheme != 'https' or parsed.hostname != 'files.pythonhosted.org':
+                      raise SystemExit('Unexpected PyPI download host.')
+                  with urllib.request.urlopen(entry['url'],timeout=30) as response:
+                      data = response.read()
+                  if hashlib.sha256(data).hexdigest() != entry['digests']['sha256']:
+                      raise SystemExit('PyPI artifact hash mismatch.')
+                  (Path('release/dist')/entry['filename']).write_bytes(data)
+              print('Existing PyPI release verified; reusing its immutable artifacts.')
+          PY
+      - name: Publish to PyPI (idempotent)
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          test -n "$UV_PUBLISH_TOKEN" || { echo 'Configure the PYPI_API_TOKEN repository secret.'; exit 1; }
+          uv publish --trusted-publishing never --check-url https://pypi.org/simple/fitro-mcp/ release/dist/*.whl release/dist/*.tar.gz
+      - name: Verify registry installation and record hashes
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          uvx "fitro-mcp@$RELEASE_VERSION" --version
+          python3 - <<'PY'
+          import hashlib
+          from pathlib import Path
+          directory=Path('release/dist')
+          lines=[hashlib.sha256(path.read_bytes()).hexdigest()+'  '+path.name for path in sorted(directory.iterdir())]
+          (directory/'SHA256SUMS').write_text('\n'.join(lines)+'\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: published-distributions
+          path: release/
+          retention-days: 14
+
+  github:
+    needs: [prepare, pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: published-distributions
+          path: release
+      - name: Publish GitHub Release and matching PyPI artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --title "Fitro MCP $RELEASE_VERSION" --notes-file release/notes.md
+          fi
+          gh release upload "$RELEASE_TAG" release/dist/* --clobber

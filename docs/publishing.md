@@ -32,6 +32,41 @@ owned by the releasing account). Package-name availability is not legal clearanc
 The source repository is https://github.com/phanijapps/fitro-mcp. No private
 maintainer identity or contact address is invented by the release tooling.
 
+## GitHub Actions releases (recommended)
+
+The repository's **Publish release** workflow handles stable version tags:
+
+1. Update the package/runtime version, lockfile, changelog and versioned examples.
+2. Commit and push the release source to `main`.
+3. Create and push its matching immutable tag, for example:
+
+   ```bash
+   git tag -a v1.0.1 -m "Fitro MCP 1.0.1"
+   git push origin v1.0.1
+   ```
+
+GitHub then runs the complete Python 3.11–3.14 verification workflow, builds and
+smoke-tests both distributions, checks that the tag/runtime/artifact versions
+match, publishes to PyPI, verifies registry installation, and creates a GitHub
+Release with the exact PyPI files and `SHA256SUMS`.
+
+The PyPI credential is stored as the encrypted repository secret `PYPI_API_TOKEN`,
+used only by the upload step. It is never committed or supplied as a command-line
+argument. The build/verification jobs have read-only repository permissions; only
+the final GitHub Release job receives `contents: write`. The workflow uses no
+Garmin credentials and makes no personal-data requests.
+
+Existing tags can be released from **Actions → Publish release → Run workflow**:
+choose `main` and supply the tag, such as `v1.0.0`. This supports the first release,
+whose immutable tag predates the automation. It never moves a tag or replaces PyPI
+files. On reruns, the workflow downloads existing PyPI files, verifies their hashes,
+and uses those exact bytes for GitHub assets. A new version is required for changed
+package content. A partially uploaded or unexpected PyPI file set fails explicitly.
+
+If the publishing token is rotated, update the repository secret. A future
+migration to PyPI Trusted Publishing can replace the secret once an explicit
+PyPI/GitHub publisher mapping is configured.
+
 ## Supply a PyPI token locally
 
 Prefer trusted publishing when this project has a GitHub repository and an explicit

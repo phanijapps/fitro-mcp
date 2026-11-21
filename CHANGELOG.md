@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- GitHub Actions tag-based PyPI publication and GitHub Releases, with immutable
+  version checks, shared verification, exact registry assets and checksums.
+
 ## 1.0.0 — 2026-11-20
 
 First stable release using the new **Fitro MCP** identity.

@@ -9,6 +9,7 @@ Profile, and Discover. Uses the official Garmin Connect Personal API, with all
 
 [Source](https://github.com/phanijapps/fitro-mcp) ·
 [PyPI](https://pypi.org/project/fitro-mcp/) ·
+[GitHub releases](https://github.com/phanijapps/fitro-mcp/releases) ·
 [Changelog](https://github.com/phanijapps/fitro-mcp/blob/main/CHANGELOG.md)
 
 ## Try a simple prompt
@@ -306,6 +307,12 @@ a logging initialization/write failure reports a fixed message on stderr.
 
 Match a failed tool result's `request_id` to the local log when troubleshooting.
 Debug output deliberately cannot show upstream response bodies or detailed payloads.
+
+## Releases
+
+Stable `vMAJOR.MINOR.PATCH` tags trigger GitHub Actions to verify, publish to PyPI,
+and create a GitHub Release with matching distribution files and checksums. See
+[the publishing guide](docs/publishing.md) for tag creation, reruns and credentials.
 
 ## Develop and verify
 

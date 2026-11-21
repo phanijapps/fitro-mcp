@@ -36,7 +36,8 @@ passed all Python 3.11–3.14 quality jobs and the dependency audit. A manual li
 global-region token exchange and
 authenticated activity-types call succeeded through MCP. Other endpoints and the
 China region remain unverified live. Trademark clearance has not been performed.
-PyPI upload/registry installation is a separate release step requiring credentials. Observed plain-JWT responses and synthetic JSON compatibility formats
+PyPI 1.0.0 upload and registry installation passed. Both published file hashes
+match the reviewed local artifacts; the registry-installed MCP smoke test passed. Observed plain-JWT responses and synthetic JSON compatibility formats
 are distinguished in [authentication.md](authentication.md).
 
 The serialized `tools/list` tool definitions decreased from 21,705 characters
