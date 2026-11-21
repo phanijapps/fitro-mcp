@@ -5,56 +5,38 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/fitro-mcp)](https://pypi.org/project/fitro-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Ask Codex or another MCP-compatible assistant about your Garmin Connect activities,
-sleep, steps, heart rate and other health data. Fitro runs locally and provides
-read-only access through your Personal API key.
+## Overview
 
-## Quick start
+Fitro connects your Garmin Connect data to your AI assistant. Ask about activities,
+steps, sleep, heart rate, HRV, weight, nutrition and women's health in plain language.
 
-### 1. Get your Personal API key
+- **Read-only:** retrieve your own data without changing your Garmin account.
+- **Small toolset:** Activity, Health, Wellness, Profile and Discover cover 28 API operations.
+- **Local server:** run with `uvx`; no separate package installation is needed.
+- **Private diagnostics:** debug logs exclude health data, API keys and tokens.
 
-You need [uv](https://docs.astral.sh/uv/getting-started/installation/) and Python 3.11+.
-Linux and WSL are supported; see [platform support](#platform-support) for details.
+## Quick MCP Setup
 
-A **Garmin Connect Personal API key is required**. Create one at the official
+### Before you start
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and use Python
+3.11+. Linux and WSL are tested; see [platform support](#platform-support) for details.
+
+A **Garmin Connect Personal API key is required**. Get one from the official
 [Personal API key setup page](https://developer.garmin.com/gc-developer-program/personal/personal-api/):
 sign in, open **Personal API Key**, select **Create Key**, accept the terms and
-choose an expiry. Save the key when it is shown. Fitro handles the access-token
-exchange automatically.
+choose an expiry. Save the key when it is shown. Fitro exchanges it for an access
+token automatically.
 
-### 2. Add Fitro to Codex
+Choose your client below. Replace placeholders locally, keep keys out of chat and
+source control, and use an absolute path to `uvx` if your app cannot find it.
+The default account region is **global**. The first launch may take a minute while
+`uvx` downloads the package.
 
-Paste this into `~/.codex/config.toml` and replace the placeholder with your key:
+### Claude
 
-```toml
-[mcp_servers.fitro]
-command = "uvx"
-args = ["fitro-mcp@1.0.0"]
-startup_timeout_sec = 60
-
-[mcp_servers.fitro.env]
-GARMIN_PERSONAL_API_KEY = "PASTE_YOUR_PERSONAL_API_KEY_HERE"
-```
-
-`uvx` downloads and runs Fitro automatically—no separate package installation is
-needed. The default account region is **global**.
-
-### 3. Connect and try it
-
-Restart Codex or reconnect its MCP server, then ask:
-
-> Use Fitro to list the available activity types.
-
-This checks the connection without requesting personal health measurements.
-You can then try the [sample prompts](#sample-prompts) below.
-
-If Codex cannot find `uvx`, use its absolute path as `command`. Allow up to a minute
-for the first download. See the [official Codex MCP guide](https://developers.openai.com/codex/mcp)
-for managing your connections.
-
-### Other MCP clients
-
-For clients that use a `mcpServers` JSON configuration, add:
+For **Claude Desktop**, open its local MCP configuration file,
+`claude_desktop_config.json`, and merge in:
 
 ```json
 {
@@ -70,50 +52,105 @@ For clients that use a `mcpServers` JSON configuration, add:
 }
 ```
 
-Replace the placeholder locally and reconnect the client. Keep your key out of chat
-and source control. On POSIX systems, keep configuration files private (`0600`).
-
-### Optional settings
-
-| If you want to… | Change your configuration |
-| --- | --- |
-| Use a China-region account | Add `FITRO_REGION = "china"` under `[mcp_servers.fitro.env]`. |
-| Enable debug logs | Use `args = ["fitro-mcp@1.0.0", "--debug"]`. |
-| Check your installed version | Run `uvx fitro-mcp@1.0.0 --version` in a terminal. |
+Save and restart Claude Desktop. See the
+[official local-server setup guide](https://modelcontextprotocol.io/docs/develop/connect-local-servers)
+for locating the configuration file and checking the connection.
 
 <details>
-<summary>Codex CLI setup or an environment-provided key</summary>
+<summary>Claude Code</summary>
 
-You can register a placeholder with the Codex CLI, then edit the real key in
-`~/.codex/config.toml`:
+Register a placeholder in your user-level configuration:
 
 ```bash
-codex mcp add fitro --env GARMIN_PERSONAL_API_KEY=PASTE_YOUR_PERSONAL_API_KEY_HERE -- uvx fitro-mcp@1.0.0
-codex mcp list
+claude mcp add --scope user --env GARMIN_PERSONAL_API_KEY=PASTE_YOUR_PERSONAL_API_KEY_HERE --transport stdio fitro -- uvx fitro-mcp@1.0.0
 ```
 
-If your Codex launcher already receives `GARMIN_PERSONAL_API_KEY` from its
-environment, use this configuration instead:
+Then replace the placeholder locally in the user-level `mcpServers.fitro` entry
+in `~/.claude.json`. Start a new Claude Code session and use `/mcp` to check Fitro.
+See the [Claude Code MCP guide](https://code.claude.com/docs/en/mcp).
+
+</details>
+
+### ChatGPT
+
+**ChatGPT web does not launch local `uvx` commands directly.** Where your account
+supports [Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels),
+you can connect Fitro's stdio process through OpenAI's `tunnel-client`.
+
+First install `tunnel-client`, create a tunnel associated with your ChatGPT workspace,
+and obtain its runtime key using the linked guide. Set `CONTROL_PLANE_API_KEY` and
+`GARMIN_PERSONAL_API_KEY` securely in your local environment, then run:
+
+```bash
+tunnel-client init --sample sample_mcp_stdio_local --profile fitro --tunnel-id YOUR_TUNNEL_ID --mcp-command "uvx fitro-mcp@1.0.0"
+tunnel-client doctor --profile fitro --explain
+tunnel-client run --profile fitro
+```
+
+Keep the tunnel client running. In ChatGPT, open **Plugins → Add custom MCP server**,
+choose **Tunnel**, select your tunnel and complete the connection. Workspace
+permissions and feature availability apply. This requires separate OpenAI tunnel
+setup; Fitro does not include the tunnel client or provide an HTTP endpoint.
+See [OpenAI's connection guide](https://help.openai.com/en/articles/12584461-connecting-custom-mcp-servers-in-chatgpt).
+
+### Antigravity
+
+In Antigravity IDE, open **MCP Servers → Manage MCP Servers → View raw config**.
+Merge this into `mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "fitro": {
+      "command": "uvx",
+      "args": ["fitro-mcp@1.0.0"],
+      "env": {
+        "GARMIN_PERSONAL_API_KEY": "PASTE_YOUR_PERSONAL_API_KEY_HERE"
+      }
+    }
+  }
+}
+```
+
+Save and reload the server. Current Antigravity documentation places global config
+at `~/.gemini/config/mcp_config.json` and workspace config at `.agents/mcp_config.json`.
+Use your app's raw-config view to locate the file for your installed version.
+See [Google's MCP setup guide](https://antigravity.google/docs/mcp?tab=ide).
+
+### Codex
+
+Paste this into `~/.codex/config.toml`, then save and reconnect Fitro or restart Codex:
 
 ```toml
 [mcp_servers.fitro]
 command = "uvx"
 args = ["fitro-mcp@1.0.0"]
 startup_timeout_sec = 60
-env_vars = ["GARMIN_PERSONAL_API_KEY"]
+
+[mcp_servers.fitro.env]
+GARMIN_PERSONAL_API_KEY = "PASTE_YOUR_PERSONAL_API_KEY_HERE"
 ```
 
-Omit the `[mcp_servers.fitro.env]` table in this case so a placeholder cannot
-override your environment-provided key. No `.env` files are loaded automatically.
+See the [official Codex MCP guide](https://developers.openai.com/codex/mcp).
+If your launcher supplies the key from its environment, omit `[mcp_servers.fitro.env]` and
+set `env_vars = ["GARMIN_PERSONAL_API_KEY"]` inside `[mcp_servers.fitro]` instead.
 
-</details>
+### Check the connection
 
-## Sample prompts
+Ask your connected assistant:
 
-Start with a day or a short date range. Fitro retrieves the data, and your assistant
-explains it. Ask the assistant to report unavailable measurements rather than guess.
+> Use Fitro to list the available activity types.
 
-**Steps and sleep**
+This tests authentication without retrieving personal health measurements.
+For debug logs, add `"--debug"` after `"fitro-mcp@1.0.0"` in the argument list.
+For a China-region account, set `FITRO_REGION` to `china` in your server environment.
+
+## Sample Prompts
+
+Use a day or a short date range. Ask the assistant to discover the right operation
+and report unavailable measurements rather than guess.
+
+**Daily summary**
 
 > Use Fitro to show my steps and sleep for yesterday. Discover the operations you
 > need first, and tell me if any data is unavailable.
@@ -122,52 +159,27 @@ explains it. Ask the assistant to report unavailable measurements rather than gu
 
 > Find my five most recent running activities and summarize their distance and duration.
 
-**Sleep comparison**
+**Visualize steps**
 
-> Compare my sleep over the last seven days. Point out missing days rather than filling them in.
+> Use Fitro to fetch my daily steps for the last seven days. Visualize them as a
+> bar chart with dates on the x-axis and steps on the y-axis. Show missing days as
+> missing rather than zero, and include the source values in a table.
 
-**Explore available data**
+**Visualize sleep**
+
+> Use Fitro to compare my sleep duration over the last seven days. Create a line
+> chart in hours, leave gaps for unavailable nights, and summarize the pattern
+> without making medical claims.
+
+**Explore women's health**
 
 > Use Fitro to show which women's health operations are available. Don't retrieve my data yet.
 
-## Help and troubleshooting
+Charts are created by your assistant/client from the returned data. Fitro itself
+does not render charts or expose a built-in visualization tool. If the client cannot
+render a chart, ask for a table or a plotting script instead.
 
-| What you see | What to try |
-| --- | --- |
-| Fitro tools do not appear | Confirm `uvx` is on your client's PATH, check the config, then reconnect. |
-| Authentication fails | Check that you entered a Personal API key and that it has not expired or been revoked. |
-| Access denied | Check your account region and API permissions. |
-| No data for a day | Try a date with synced measurements; availability depends on your account and device. |
-| Rate limit reached | Wait before retrying. |
-| Response too large | Request fewer activities or a narrower date range. |
-| The process appears to wait in a terminal | Fitro expects an MCP client on stdin; connect it through your client's configuration. |
-
-With `--debug`, local logs are written to **`~/.starbridge/fitro.log`**. They rotate
-at 1 MB per file with three backups. The `.starbridge` directory name is intentional.
-Match a failed tool result's `request_id` to the log when troubleshooting.
-
-Logs contain generic events, random diagnostic IDs, HTTP status codes and timings.
-They exclude health payloads, queried dates, activity IDs, operation names, URLs,
-headers, keys, tokens and exception text—even in debug mode. Logs stay local;
-stdout is reserved for MCP messages. See [diagnostic internals](docs/code-reference.md#results-and-diagnostics)
-for file permissions and rotation details.
-
-## Privacy and personal use
-
-- Fitro reads data; it does not write to your Garmin account or save health payloads
-  and access tokens to disk.
-- Retrieved data is visible to your MCP client and potentially its model provider.
-  Choose a client whose data handling you trust.
-- The [Personal API FAQ](https://developer.garmin.com/gc-developer-program/personal/personal-faq/)
-  limits the API to an individual's own data and excludes commercial applications
-  serving multiple users.
-
-**Independent project. Not affiliated with, endorsed by, or sponsored by Garmin.**
-Garmin and Garmin Connect are trademarks of Garmin Ltd. or its subsidiaries. The
-Fitro name has not received trademark clearance. The client code is [MIT licensed](LICENSE);
-upstream services retain their own terms.
-
-## Technical reference
+## Technical Details
 
 The details below are for developers and users who want to inspect the MCP interface.
 
@@ -288,13 +300,50 @@ dynamic tool activation are not part of this interface.
 example, replace `get_hrv({"calendarDate": "2026-11-20"})` with
 `health({"operation": "hrv", "parameters": {"calendarDate": "2026-11-20"}})`.
 
-## Development and alternative installation
+### Troubleshooting and diagnostics
+
+| What you see | What to try |
+| --- | --- |
+| Fitro tools do not appear | Confirm `uvx` is on your client's PATH, check the config, then reconnect. |
+| Authentication fails | Check that you entered a Personal API key and that it has not expired or been revoked. |
+| Access denied | Check your account region and API permissions. |
+| No data for a day | Try a date with synced measurements; availability depends on your account and device. |
+| Rate limit reached | Wait before retrying. |
+| Response too large | Request fewer activities or a narrower date range. |
+| The process appears to wait in a terminal | Fitro expects an MCP client on stdin; connect it through your client's configuration. |
+
+With `--debug`, local logs are written to **`~/.starbridge/fitro.log`**. They rotate
+at 1 MB per file with three backups. The `.starbridge` directory name is intentional.
+Match a failed tool result's `request_id` to the log when troubleshooting.
+
+Logs contain generic events, random diagnostic IDs, HTTP status codes and timings.
+They exclude health payloads, queried dates, activity IDs, operation names, URLs,
+headers, keys, tokens and exception text—even in debug mode. Logs stay local;
+stdout is reserved for MCP messages. See [diagnostic internals](docs/code-reference.md#results-and-diagnostics)
+for file permissions and rotation details.
+
+### Privacy and personal use
+
+- Fitro reads data; it does not write to your Garmin account or save health payloads
+  and access tokens to disk.
+- Retrieved data is visible to your MCP client and potentially its model provider.
+  Choose a client whose data handling you trust.
+- The [Personal API FAQ](https://developer.garmin.com/gc-developer-program/personal/personal-faq/)
+  limits the API to an individual's own data and excludes commercial applications
+  serving multiple users.
+
+**Independent project. Not affiliated with, endorsed by, or sponsored by Garmin.**
+Garmin and Garmin Connect are trademarks of Garmin Ltd. or its subsidiaries. The
+Fitro name has not received trademark clearance. The client code is [MIT licensed](LICENSE);
+upstream services retain their own terms.
+
+### Development and alternative installation
 
 For code organization and extension contracts, see the
 [code reference](docs/code-reference.md), [architecture](docs/architecture.md),
 [contributor guide](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md).
 
-### Run from a checkout
+#### Run from a checkout
 
 ```bash
 uv sync --locked
@@ -324,7 +373,7 @@ uv run fitro-mcp
 Keys are never accepted as server command-line arguments. Without a connected MCP
 client, the server waits for protocol messages on stdin.
 
-### Install with pip
+#### Install with pip
 
 If you prefer to manage a virtual environment instead of using `uvx`:
 
@@ -338,7 +387,7 @@ fitro-mcp --version
 For an MCP client using this installation, set `command` to the absolute path of
 that environment's `fitro-mcp` executable and omit the `uvx` package arguments.
 
-### Verify changes
+#### Verify changes
 
 ```bash
 uv run ruff check .
@@ -353,7 +402,7 @@ uv run twine check dist/*
 Tests use synthetic credentials and do not need a live account. Installed-package
 checks and release steps are documented in [publishing](docs/publishing.md).
 
-### Release automation
+#### Release automation
 
 Stable `vMAJOR.MINOR.PATCH` tags trigger GitHub Actions to verify, publish to PyPI,
 and create a GitHub Release with matching distribution files and checksums. See
