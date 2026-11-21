@@ -1,0 +1,10 @@
+# Merge into ~/.codex/config.toml; enter the key locally and keep this file private.
+[mcp_servers.fitro]
+command = "uvx"
+args = ["fitro-mcp@1.0.0"]
+startup_timeout_sec = 60
+
+[mcp_servers.fitro.env]
+GARMIN_PERSONAL_API_KEY = "PASTE_YOUR_PERSONAL_API_KEY_HERE"
+# FITRO_REGION = "china" # Global is the default.
+# Debug: change args above to ["fitro-mcp@1.0.0", "--debug"].

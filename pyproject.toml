@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "fitro-mcp"
+version = "1.0.0"
+description = "A local, read-only MCP bridge to personal fitness and wellness data"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["mcp", "fitness", "wellness", "personal-api"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Typing :: Typed",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Interface Engine/Protocol Translator",
+]
+dependencies = ["filelock>=3.20,<5", "httpx>=0.28.1,<1", "mcp>=1.30.0,<2", "jsonschema[format]>=4.23,<5", "pydantic>=2.12,<3"]
+
+[project.urls]
+Homepage = "https://github.com/phanijapps/fitro-mcp"
+Repository = "https://github.com/phanijapps/fitro-mcp"
+Documentation = "https://github.com/phanijapps/fitro-mcp#readme"
+Issues = "https://github.com/phanijapps/fitro-mcp/issues"
+Changelog = "https://github.com/phanijapps/fitro-mcp/blob/main/CHANGELOG.md"
+
+[project.scripts]
+fitro-mcp = "fitro_mcp.__main__:main"
+
+[dependency-groups]
+dev = ["ruff>=0.14", "mypy>=1.19", "pytest>=9", "pytest-asyncio>=1", "pytest-cov>=7", "types-jsonschema>=4.23", "pip-audit>=2.9", "twine>=6", "pre-commit>=4"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/fitro_mcp"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src", "/tests", "/docs", "/examples", "/scripts",
+  "/README.md", "/AGENTS.md", "/LICENSE", "/SECURITY.md",
+  "/CHANGELOG.md", "/CONTRIBUTING.md", "/pyproject.toml", "/uv.lock",
+  "/.github", "/.gitignore", "/.pre-commit-config.yaml", "/.env.example",
+]
+exclude = ["**/__pycache__", "**/*.pyc"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "S", "RUF", "D"]
+ignore = ["D203", "D213"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "D", "S603"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["fitro_mcp"]
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "--cov=fitro_mcp --cov-report=term-missing --cov-fail-under=85"
